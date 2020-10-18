@@ -70,12 +70,19 @@ public class SqlServerConnection extends JdbcConnection {
 
     private static final int CHANGE_TABLE_DATA_COLUMN_OFFSET = 5;
 
-    private static final String URL_PATTERN = "jdbc:sqlserver://${" + JdbcConfiguration.HOSTNAME + "}:${" + JdbcConfiguration.PORT + "};databaseName=${"
+    private static final String URL_PATTERN_WITH_PORT = "jdbc:sqlserver://${" + JdbcConfiguration.HOSTNAME + "}:${" + JdbcConfiguration.PORT + "};databaseName=${"
             + JdbcConfiguration.DATABASE + "}";
-    private static final ConnectionFactory FACTORY = JdbcConnection.patternBasedFactory(URL_PATTERN,
+    private static final String URL_PATTERN_WITH_INSTANCE = "jdbc:sqlserver://${" + JdbcConfiguration.HOSTNAME + "};instanceName=${" + JdbcConfiguration.INSTANCE + "};databaseName=${"
+            + JdbcConfiguration.DATABASE + "}";
+
+    private static final ConnectionFactory PORTFACTORY = JdbcConnection.patternBasedFactory(URL_PATTERN_WITH_PORT,
             SQLServerDriver.class.getName(),
             SqlServerConnection.class.getClassLoader(),
             JdbcConfiguration.PORT.withDefault(SqlServerConnectorConfig.PORT.defaultValueAsString()));
+
+    private static final ConnectionFactory INSTANCEFACTORY = JdbcConnection.patternBasedFactory(URL_PATTERN_WITH_INSTANCE,
+            SQLServerDriver.class.getName(),
+            SqlServerConnection.class.getClassLoader());
 
     /**
      * actual name of the database, which could differ in casing from the database name given in the connector config.
@@ -112,7 +119,7 @@ public class SqlServerConnection extends JdbcConnection {
      */
     public SqlServerConnection(Configuration config, Clock clock, SourceTimestampMode sourceTimestampMode, SqlServerValueConverters valueConverters,
                                Supplier<ClassLoader> classLoaderSupplier) {
-        super(config, FACTORY, classLoaderSupplier);
+        super(config, (config.getString(INSTANCE_NAME)!=null && !config.getString(INSTANCE_NAME).isEmpty())?INSTANCEFACTORY:PORTFACTORY, classLoaderSupplier);
         lsnToInstantCache = new BoundedConcurrentHashMap<>(100);
         realDatabaseName = retrieveRealDatabaseName();
         boolean supportsAtTimeZone = supportsAtTimeZone();
